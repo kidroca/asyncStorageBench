@@ -24,6 +24,7 @@ import {Colors} from 'react-native/Libraries/NewAppScreen';
 import {
   printInfo,
   useHasDbItems,
+  useMetrics,
   useReadAction,
   useResetAction,
   useWriteAction,
@@ -69,6 +70,7 @@ const App: () => Node = () => {
   };
 
   const isLoading = reset.loading || write.loading || read.loading;
+  const {writeItem = {}, readItem = {}} = useMetrics(isLoading);
 
   return (
     <SafeAreaView style={backgroundStyle}>
@@ -83,20 +85,52 @@ const App: () => Node = () => {
           <Section title="DB State">
             {hasDbItems ? 'Has Content' : 'Empty DB'}
           </Section>
-          <Section title="Before Updates">Perform 1M writes</Section>
+          <Section title="Actions" />
           <Button title="Reset" onPress={reset.execute} />
-          <Button
-            title="Write 1M"
-            onPress={write.execute}
-            disabled={isLoading}
-          />
-          <Button title="Read 1M" onPress={read.execute} disabled={isLoading} />
+          <Button title="Write" onPress={write.execute} disabled={isLoading} />
+          <Button title="Read" onPress={read.execute} disabled={isLoading} />
           <Button title="Print Info" onPress={printInfo} disabled={isLoading} />
-          <ActivityIndicator animating={isLoading} />
+          <ActivityIndicator animating={isLoading} size="large" />
+          <Section title="Write Stats">
+            Total: <HumanReadableDuration millis={writeItem.total} />
+            {'\n'}
+            Max: <HumanReadableDuration millis={writeItem.max} />
+            {'\n'}
+            Min: <HumanReadableDuration millis={writeItem.min} />
+            {'\n'}
+            Average: <HumanReadableDuration millis={writeItem.avg} />
+            {'\n'}
+            Write Ops: {writeItem.calls?.length ?? 0}
+          </Section>
+          <Section title="Read Stats">
+            Total: <HumanReadableDuration millis={readItem.total} />
+            {'\n'}
+            Max: <HumanReadableDuration millis={readItem.max} />
+            {'\n'}
+            Min: <HumanReadableDuration millis={readItem.min} />
+            {'\n'}
+            Average: <HumanReadableDuration millis={readItem.avg} />
+            {'\n'}
+            Read Ops: {readItem.calls?.length ?? 0}
+          </Section>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
+};
+
+const HumanReadableDuration: () => Node = ({millis = 0}) => {
+  const minute = 60 * 1000;
+  if (millis > minute) {
+    return `${(millis / minute).toFixed(1)}min`;
+  }
+
+  const second = 1000;
+  if (millis > second) {
+    return `${(millis / second).toFixed(2)}sec`;
+  }
+
+  return `${millis.toFixed(3)}ms`;
 };
 
 const styles = StyleSheet.create({

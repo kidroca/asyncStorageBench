@@ -3,15 +3,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   decorateWithMetrics,
   printMetrics,
+  getMetrics,
   resetMetrics,
 } from 'react-native-onyx/lib/decorateWithMetrics';
 import {createRef, useEffect, useState} from 'react';
+import {random, range, shuffle} from 'lodash';
+
+import mockData from './mock-data.json';
 
 let dbCheckHelper = createRef({setHasItems: () => {}});
 
 export const useResetAction = () =>
-  useAsyncCallback(() => {
-    AsyncStorage.clear();
+  useAsyncCallback(async () => {
+    await AsyncStorage.clear();
+    resetMetrics();
     dbCheckHelper.current.setHasItems(false);
   }, []);
 
@@ -28,9 +33,12 @@ export const useHasDbItems = () => {
 };
 
 const writeItemsSync = async count => {
+  const numbers = getShuffledNumbers(count);
+
   for (let i = 0; i < count; i++) {
-    const item = Math.random().toFixed(2);
-    await decoratedWrite(i.toString(), item);
+    const key = `${KEY_PREFIX}${numbers[i]}`;
+    const item = mockData[random(0, mockData.length - 1)].message;
+    await decoratedWrite(key.toString(), item);
   }
 
   await AsyncStorage.setItem('isFilled', 'filled');
@@ -38,10 +46,15 @@ const writeItemsSync = async count => {
 };
 
 const readItemsSync = async count => {
+  const numbers = getShuffledNumbers(count);
+
   for (let i = 0; i < count; i++) {
-    await decoratedRead(i.toString());
+    const key = `${KEY_PREFIX}${numbers[i]}`;
+    await decoratedRead(key);
   }
 };
+
+const getShuffledNumbers = count => shuffle(range(1, count));
 
 const decoratedWrite = decorateWithMetrics(AsyncStorage.setItem, 'writeItem');
 const decoratedWrites = decorateWithMetrics(writeItemsSync, 'writeItems');
@@ -54,9 +67,22 @@ export const useWriteAction = (count = DEFAULT_COUNT) =>
 export const useReadAction = (count = DEFAULT_COUNT) =>
   useAsyncCallback(async () => decoratedReads(count), [count]);
 
+export const useMetrics = deps => {
+  const [metrics, setMetrics] = useState({});
+
+  useEffect(() => {
+    const met = getMetrics();
+    console.log('met: ', met);
+    setMetrics(getMetrics().summaries);
+  }, [deps]);
+
+  return metrics;
+};
+
 export const printInfo = () => {
   printMetrics();
   resetMetrics();
 };
 
 const DEFAULT_COUNT = 1 * 1000;
+const KEY_PREFIX = 'rnd-key-';
