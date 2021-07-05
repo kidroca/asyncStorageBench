@@ -6,7 +6,7 @@
  * @flow strict-local
  */
 
-import React from 'react';
+import React, {useState} from 'react';
 import type {Node} from 'react';
 import {
   ActivityIndicator,
@@ -16,13 +16,13 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   useColorScheme,
   View,
 } from 'react-native';
 
 import {Colors} from 'react-native/Libraries/NewAppScreen';
 import {
-  printInfo,
   useHasDbItems,
   useMetrics,
   useReadAction,
@@ -30,39 +30,13 @@ import {
   useWriteAction,
 } from './bench/hooks';
 
-const Section = ({children, title}): Node => {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-};
-
 const App: () => Node = () => {
   const isDarkMode = useColorScheme() === 'dark';
+  const [count, setCount] = useState(10000);
 
   const reset = useResetAction();
-  const write = useWriteAction();
-  const read = useReadAction();
+  const write = useWriteAction(count);
+  const read = useReadAction(count);
   const hasDbItems = useHasDbItems();
 
   const backgroundStyle = {
@@ -73,58 +47,73 @@ const App: () => Node = () => {
   const {writeItem = {}, readItem = {}} = useMetrics(isLoading);
 
   return (
-    <SafeAreaView style={backgroundStyle}>
+    <SafeAreaView style={[styles.screen, backgroundStyle]}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="DB State">
-            {hasDbItems ? 'Has Content' : 'Empty DB'}
-          </Section>
-          <Section title="Actions" />
-          <Button title="Reset" onPress={reset.execute} />
-          <Button title="Write" onPress={write.execute} disabled={isLoading} />
-          <Button title="Read" onPress={read.execute} disabled={isLoading} />
-          <Button title="Print Info" onPress={printInfo} disabled={isLoading} />
-          <ActivityIndicator animating={isLoading} size="large" />
-          <Section title="Write Stats">
-            Total: <HumanReadableDuration millis={writeItem.total} />
-            {'\n'}
-            Max: <HumanReadableDuration millis={writeItem.max} />
-            {'\n'}
-            Min: <HumanReadableDuration millis={writeItem.min} />
-            {'\n'}
-            Average: <HumanReadableDuration millis={writeItem.avg} />
-            {'\n'}
-            Write Ops: {writeItem.calls?.length ?? 0}
-          </Section>
-          <Section title="Read Stats">
-            Total: <HumanReadableDuration millis={readItem.total} />
-            {'\n'}
-            Max: <HumanReadableDuration millis={readItem.max} />
-            {'\n'}
-            Min: <HumanReadableDuration millis={readItem.min} />
-            {'\n'}
-            Average: <HumanReadableDuration millis={readItem.avg} />
-            {'\n'}
-            Read Ops: {readItem.calls?.length ?? 0}
-          </Section>
+      <ScrollView contentInsetAdjustmentBehavior="automatic">
+        <Section title="DB State">
+          {hasDbItems ? 'Has Content' : 'Empty DB'}
+        </Section>
+        <View style={[styles.sectionContainer]}>
+          <AppText style={styles.sectionTitle}>
+            Actions
+            <ActivityIndicator
+              color={Colors.primary}
+              style={styles.loader}
+              animating={isLoading}
+              size="small"
+            />
+          </AppText>
+
+          <View style={styles.row}>
+            <Text style={styles.input}>Ops count: </Text>
+            <TextInput
+              keyboardType="numeric"
+              defaultValue="10000"
+              style={[
+                styles.input,
+                {backgroundColor: isDarkMode ? Colors.dark : Colors.light},
+              ]}
+              onChangeText={text => setCount(Number.parseInt(text, 10))}
+              maxLength={7}
+              autoCompleteType="off"
+              textAlign="center"
+              editable={!isLoading}
+            />
+          </View>
+
+          <Action title="Reset" action={reset} disabled={isLoading} />
+          <Action title="Write" action={write} disabled={isLoading} />
+          <Action title="Read" action={read} disabled={isLoading} />
         </View>
+        <StatsSection title="Write Stats" {...writeItem} />
+        <StatsSection title="Read Stats" {...readItem} />
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const HumanReadableDuration: () => Node = ({millis = 0}) => {
-  const minute = 60 * 1000;
-  if (millis > minute) {
-    return `${(millis / minute).toFixed(1)}min`;
-  }
+const Section = ({children, title}): Node => (
+  <View style={styles.sectionContainer}>
+    <AppText style={styles.sectionTitle}>{title}</AppText>
+    <AppText style={styles.sectionDescription}>{children}</AppText>
+  </View>
+);
 
+const StatsSection = ({title, total, max, min, avg, calls}): Node => (
+  <Section title={title}>
+    Total: <HumanReadableDuration millis={total} />
+    {'\n'}
+    Max: <HumanReadableDuration millis={max} />
+    {'\n'}
+    Min: <HumanReadableDuration millis={min} />
+    {'\n'}
+    Average: <HumanReadableDuration millis={avg} />
+    {'\n'}
+    Ops: {calls?.length ?? 0}
+  </Section>
+);
+
+const HumanReadableDuration = ({millis = 0}): Node => {
   const second = 1000;
   if (millis > second) {
     return `${(millis / second).toFixed(2)}sec`;
@@ -133,10 +122,32 @@ const HumanReadableDuration: () => Node = ({millis = 0}) => {
   return `${millis.toFixed(3)}ms`;
 };
 
+const Action = ({action, title, disabled}): Node => (
+  <View style={styles.actionWrap}>
+    <Button
+      title={title}
+      onPress={action.execute}
+      disabled={disabled}
+      color={Colors.primary}
+    />
+  </View>
+);
+
+const AppText = ({style, ...props}): Node => {
+  const isDarkMode = useColorScheme() === 'dark';
+  const color = isDarkMode ? Colors.white : Colors.black;
+
+  return <Text style={[{color}, style]} {...props} />;
+};
+
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   sectionContainer: {
-    marginTop: 32,
+    marginTop: 8,
     paddingHorizontal: 24,
+    position: 'relative',
   },
   sectionTitle: {
     fontSize: 24,
@@ -147,8 +158,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '400',
   },
-  highlight: {
-    fontWeight: '700',
+  loader: {
+    height: 18,
+    paddingLeft: 8,
+    alignSelf: 'center',
+  },
+  actionWrap: {
+    marginBottom: 8,
+  },
+  input: {
+    fontSize: 18,
+    fontWeight: '400',
+    flex: 1,
+  },
+  tint: {
+    backgroundColor: '#aaa',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 8,
   },
 });
 

@@ -37,8 +37,14 @@ const writeItemsSync = async count => {
 
   for (let i = 0; i < count; i++) {
     const key = `${KEY_PREFIX}${numbers[i]}`;
-    const item = mockData[random(0, mockData.length - 1)].message;
-    await decoratedWrite(key.toString(), item);
+    const value = mockData[random(0, mockData.length - 1)].message;
+
+    if (__DEV__ && count <= 1000) {
+      console.info('writing key: ', key);
+      console.log('writing value: ', value);
+    }
+
+    await decoratedWrite(key.toString(), value);
   }
 
   await AsyncStorage.setItem('isFilled', 'filled');
@@ -50,39 +56,37 @@ const readItemsSync = async count => {
 
   for (let i = 0; i < count; i++) {
     const key = `${KEY_PREFIX}${numbers[i]}`;
-    await decoratedRead(key);
+    const value = await decoratedRead(key);
+
+    if (__DEV__ && count <= 1000) {
+      console.info('read key: ', key);
+      console.log('read value: ', value);
+    }
   }
 };
 
-const getShuffledNumbers = count => shuffle(range(1, count));
+const getShuffledNumbers = count => shuffle(range(1, count + 1));
 
 const decoratedWrite = decorateWithMetrics(AsyncStorage.setItem, 'writeItem');
-const decoratedWrites = decorateWithMetrics(writeItemsSync, 'writeItems');
 const decoratedRead = decorateWithMetrics(AsyncStorage.getItem, 'readItem');
-const decoratedReads = decorateWithMetrics(readItemsSync, 'readItems');
 
 export const useWriteAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => decoratedWrites(count), [count]);
+  useAsyncCallback(async () => writeItemsSync(count), [count]);
 
 export const useReadAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => decoratedReads(count), [count]);
+  useAsyncCallback(async () => readItemsSync(count), [count]);
 
 export const useMetrics = deps => {
   const [metrics, setMetrics] = useState({});
 
   useEffect(() => {
-    const met = getMetrics();
-    console.log('met: ', met);
     setMetrics(getMetrics().summaries);
   }, [deps]);
 
   return metrics;
 };
 
-export const printInfo = () => {
-  printMetrics();
-  resetMetrics();
-};
+global.printMetrics = printMetrics;
 
-const DEFAULT_COUNT = 1 * 1000;
+const DEFAULT_COUNT = 10 * 1000;
 const KEY_PREFIX = 'rnd-key-';
