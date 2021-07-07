@@ -1,5 +1,5 @@
 import {useAsyncCallback} from 'react-async-hook';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-community/async-storage';
 import {
   decorateWithMetrics,
   printMetrics,
@@ -37,7 +37,7 @@ const writeItemsSync = async count => {
 
   for (let i = 0; i < count; i++) {
     const key = `${KEY_PREFIX}${numbers[i]}`;
-    const value = mockData[random(0, mockData.length - 1)].message;
+    const value = getPayload();
 
     if (__DEV__ && count <= 1000) {
       console.info('writing key: ', key);
@@ -47,6 +47,33 @@ const writeItemsSync = async count => {
     await decoratedWrite(key.toString(), value);
   }
 
+  await AsyncStorage.setItem('isFilled', 'filled');
+  dbCheckHelper.current.setHasItems(true);
+};
+
+const writeItemsBatch = async count => {
+  const numbers = getShuffledNumbers(count);
+  const pairs = numbers.map(n => {
+    const key = `${KEY_PREFIX}${n}`;
+    const value = getPayload();
+
+    return [key, value];
+  });
+
+  await decoratedMultiSet(pairs);
+  await AsyncStorage.setItem('isFilled', 'filled');
+  dbCheckHelper.current.setHasItems(true);
+};
+
+const writeItemsParallel = async count => {
+  const tasks = getShuffledNumbers(count).map(n => {
+    const key = `${KEY_PREFIX}${n}`;
+    const value = getPayload();
+
+    return decoratedWrite(key, value);
+  });
+
+  await Promise.all(tasks);
   await AsyncStorage.setItem('isFilled', 'filled');
   dbCheckHelper.current.setHasItems(true);
 };
@@ -65,16 +92,50 @@ const readItemsSync = async count => {
   }
 };
 
+const readItemsBatch = async count => {
+  const keys = getShuffledNumbers(count).map(n => `${KEY_PREFIX}${n}`);
+  return decoratedMultiGet.call(AsyncStorage, keys);
+};
+
+const readItemsParallel = async count => {
+  const tasks = getShuffledNumbers(count).map(n => {
+    const key = `${KEY_PREFIX}${n}`;
+    return decoratedRead(key);
+  });
+
+  return Promise.all(tasks);
+};
+
 const getShuffledNumbers = count => shuffle(range(1, count + 1));
+
+const getPayload = () => mockData[random(0, mockData.length - 1)].message;
 
 const decoratedWrite = decorateWithMetrics(AsyncStorage.setItem, 'writeItem');
 const decoratedRead = decorateWithMetrics(AsyncStorage.getItem, 'readItem');
 
+const decoratedMultiSet = decorateWithMetrics(
+  AsyncStorage.multiSet,
+  'multiSet',
+);
+const decoratedMultiGet = decorateWithMetrics(
+  AsyncStorage.multiGet,
+  'multiGet',
+);
+const decoratedParallelWrite = decorateWithMetrics(
+  writeItemsParallel,
+  'writeItemsParallel',
+);
+
+const decoratedParallelRead = decorateWithMetrics(
+  readItemsParallel,
+  'readItemsParallel',
+);
+
 export const useWriteAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => writeItemsSync(count), [count]);
+  useAsyncCallback(async () => writeItemsBatch(count), [count]);
 
 export const useReadAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => readItemsSync(count), [count]);
+  useAsyncCallback(async () => readItemsBatch(count), [count]);
 
 export const useMetrics = deps => {
   const [metrics, setMetrics] = useState({});
