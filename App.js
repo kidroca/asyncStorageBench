@@ -44,7 +44,7 @@ const App: () => Node = () => {
   };
 
   const isLoading = reset.loading || write.loading || read.loading;
-  const {writeItem = {}, readItem = {}} = useMetrics(isLoading);
+  const stats = useMetrics(isLoading);
 
   return (
     <SafeAreaView style={[styles.screen, backgroundStyle]}>
@@ -85,8 +85,11 @@ const App: () => Node = () => {
           <Action title="Write" action={write} disabled={isLoading} />
           <Action title="Read" action={read} disabled={isLoading} />
         </View>
-        <StatsSection title="Write Stats" {...writeItem} />
-        <StatsSection title="Read Stats" {...readItem} />
+        {Object.keys(stats)
+          .filter(stat => stats[stat].avg > 0)
+          .map(stat => (
+            <StatsSection key={stat} title={stat} {...stats[stat]} />
+          ))}
       </ScrollView>
     </SafeAreaView>
   );
