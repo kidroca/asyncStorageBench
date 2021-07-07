@@ -7,9 +7,9 @@ import {
   resetMetrics,
 } from 'react-native-onyx/lib/decorateWithMetrics';
 import {createRef, useEffect, useState} from 'react';
-import {random, range, shuffle} from 'lodash';
+import {range, shuffle} from 'lodash';
 
-import mockData from './mock-data.json';
+import {kb9Chat} from './mocks';
 
 let dbCheckHelper = createRef({setHasItems: () => {}});
 
@@ -41,7 +41,10 @@ const writeItemsSync = async count => {
 
     if (__DEV__ && count <= 1000) {
       console.info('writing key: ', key);
-      console.log('writing value: ', value);
+      console.info(
+        'writing value: ',
+        value.substr(0, 100) + (value.length > 100 ? '...' : ''),
+      );
     }
 
     await decoratedWrite(key.toString(), value);
@@ -87,7 +90,10 @@ const readItemsSync = async count => {
 
     if (__DEV__ && count <= 1000) {
       console.info('read key: ', key);
-      console.log('read value: ', value);
+      console.info(
+        'read value: ',
+        value.substr(0, 100) + (value.length > 100 ? '...' : ''),
+      );
     }
   }
 };
@@ -108,7 +114,7 @@ const readItemsParallel = async count => {
 
 const getShuffledNumbers = count => shuffle(range(1, count + 1));
 
-const getPayload = () => mockData[random(0, mockData.length - 1)].message;
+const getPayload = () => kb9Chat;
 
 const decoratedWrite = decorateWithMetrics(AsyncStorage.setItem, 'writeItem');
 const decoratedRead = decorateWithMetrics(AsyncStorage.getItem, 'readItem');
@@ -132,10 +138,10 @@ const decoratedParallelRead = decorateWithMetrics(
 );
 
 export const useWriteAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => writeItemsBatch(count), [count]);
+  useAsyncCallback(async () => writeItemsSync(count), [count]);
 
 export const useReadAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => readItemsBatch(count), [count]);
+  useAsyncCallback(async () => writeItemsBatch(count), [count]);
 
 export const useMetrics = deps => {
   const [metrics, setMetrics] = useState({});
