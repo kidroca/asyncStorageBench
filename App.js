@@ -65,7 +65,7 @@ const App: () => Node = () => {
           </AppText>
 
           <View style={styles.row}>
-            <Text style={styles.input}>Ops count: </Text>
+            <Text style={styles.input}>Items count: </Text>
             <TextInput
               keyboardType="numeric"
               defaultValue="10000"
