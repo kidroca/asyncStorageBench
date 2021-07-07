@@ -9,7 +9,7 @@ import {
 import {createRef, useEffect, useState} from 'react';
 import {range, shuffle} from 'lodash';
 
-import {kb9Chat} from './mocks';
+import {kb149Chat, kb9Chat} from './mocks';
 
 let dbCheckHelper = createRef({setHasItems: () => {}});
 
@@ -114,7 +114,7 @@ const readItemsParallel = async count => {
 
 const getShuffledNumbers = count => shuffle(range(1, count + 1));
 
-const getPayload = () => kb9Chat;
+const getPayload = () => kb149Chat;
 
 const decoratedWrite = decorateWithMetrics(AsyncStorage.setItem, 'writeItem');
 const decoratedRead = decorateWithMetrics(AsyncStorage.getItem, 'readItem');
@@ -141,7 +141,7 @@ export const useWriteAction = (count = DEFAULT_COUNT) =>
   useAsyncCallback(async () => writeItemsSync(count), [count]);
 
 export const useReadAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => writeItemsBatch(count), [count]);
+  useAsyncCallback(async () => readItemsSync(count), [count]);
 
 export const useMetrics = deps => {
   const [metrics, setMetrics] = useState({});
