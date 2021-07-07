@@ -138,10 +138,10 @@ const decoratedParallelRead = decorateWithMetrics(
 );
 
 export const useWriteAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => writeItemsSync(count), [count]);
+  useAsyncCallback(async () => writeItemsBatch(count), [count]);
 
 export const useReadAction = (count = DEFAULT_COUNT) =>
-  useAsyncCallback(async () => readItemsSync(count), [count]);
+  useAsyncCallback(async () => readItemsBatch(count), [count]);
 
 export const useMetrics = deps => {
   const [metrics, setMetrics] = useState({});
