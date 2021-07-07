@@ -3,6 +3,8 @@
 An app with 3 buttons used to perform read/write timings of AsyncStorage  
 Focused primarily on testing the Android implementation
 
+![screenshot](./asyncStorageBench.jpg)
+
 ## Sequential tests
 
 1. Use the `sequential-tests` branch and run the app `npm run android`
